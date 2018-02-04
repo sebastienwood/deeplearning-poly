@@ -23,9 +23,12 @@ best_W = None
 best_accuracy = 0
 lr = 0.001
 nb_epochs = 500
-minibatch_size = len(y) // 20
+mbs = 20
+minibatch_size = len(y) // mbs
 
 losses = []
+lossesTest = []
+lossesValid = []
 accuracies = []
 
 
@@ -51,7 +54,7 @@ def get_accuracy(X, y, W):
 
 
 def get_grads(y, y_pred, X):
-    # Should be OK, math behind the scene to review
+    # Another form of the gradient, more intensive to process
     # return the gradient
     m = X.shape[0] # nb indiv
 
@@ -88,6 +91,8 @@ for epoch in range(nb_epochs):
         W -= (lr * grads)
 
     losses.append(loss)  # compute the loss on the train test
+    lossesTest.append(get_loss(y_test, softmax(np.dot(X_test, W.T))))
+    lossesValid.append(get_loss(y_validation, softmax(np.dot(X_validation, W.T))))
 
     accuracy = get_accuracy(X_validation, y_validation, W)
     accuracies.append(accuracy)  # compute the accuracy on the validation test
@@ -100,5 +105,12 @@ for epoch in range(nb_epochs):
 accuracy_on_unseen_data = get_accuracy(X_test, y_test, best_W)
 print(accuracy_on_unseen_data)  # 0.89750692508
 
-# plt.plot(losses)
+# plt.plot(losses, label='LossOnTrain')
+# plt.plot(lossesTest, label='LossOnTest')
+# plt.plot(lossesValid, label='LossOnValid')
+# plt.ylabel('Average negative log likelihood')
+# plt.xlabel('Epoch')
+# plt.title('Experiment with LR={} and nb minibatch={}'.format(lr, mbs))
+# plt.legend()
+# plt.show()
 # plt.imshow(best_W[4, :].reshape(8,8))
