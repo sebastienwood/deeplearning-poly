@@ -1,6 +1,5 @@
 from torchvision.datasets.mnist import MNIST
 
-
 class FashionMNIST(MNIST):
     """`Fashion-MNIST <https://github.com/zalandoresearch/fashion-mnist>`_ Dataset.
     Args:
