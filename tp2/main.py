@@ -80,7 +80,8 @@ class FcNetwork2(nn.Module):
 class FcNetwork3(nn.Module):
     # Tried a Convolutional Layer instead (because we're using images)
     # 1 layer of convolutional (size 28) without maxpool, using leakyrelu
-    # 100 epochs = stuck at 90/91%
+    # 2 fc
+    # solid 91% - going for 92% in 20 epochs (stuck around that point)
 
 
     def __init__(self):
@@ -98,27 +99,29 @@ class FcNetwork3(nn.Module):
         return x
 
 class FcNetwork4(nn.Module):
-    # Improved version displayed (using adam):
-    # 100 epochs, default Adam =
-    # Run not finished but plateau at 90% for 30 generations
+    # Improved version with 2 conv and maxpool
+    # Results surprisingly low around 89% in 15 generations
 
     def __init__(self):
         super().__init__()
-        self.cv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.cv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.cv1 = nn.Conv2d(1, 32, kernel_size=5, stride=2)
+        self.cv2 = nn.Conv2d(32, 64, kernel_size=5, stride=2)
         self.mp = nn.MaxPool2d(2)
-        self.fc1 = nn.Linear(320, 10)
+        self.fc1 = nn.Linear(64, 100)
+        self.fc2 = nn.Linear(100, 10)
 
     def forward(self, x):
         batch_size = x.size()[0]
-        x = F.leaky_relu(self.mp(self.cv1(x)))
-        x = F.leaky_relu(self.mp(self.cv2(x)))
+        x = F.leaky_relu(self.cv1(x))
+        x = self.mp(x)
+        x = F.leaky_relu(self.cv2(x))
         x = x.view(batch_size, -1)
-        x = F.log_softmax(self.fc1(x), dim=0)
+        x = F.leaky_relu(self.fc1(x))
+        x = F.log_softmax(self.fc2(x), dim=0)
         return x
 
 
-model = FcNetwork3()
+model = FcNetwork4()
 optimizer = optim.Adam(model.parameters())
 
 def train(epoch):
