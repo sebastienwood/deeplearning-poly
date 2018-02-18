@@ -121,7 +121,7 @@ class FcNetwork4(nn.Module):
         return x
 
 
-model = FcNetwork3()
+model = FcNetwork4()
 optimizer = optim.Adam(model.parameters())
 
 def train(epoch):
@@ -159,4 +159,4 @@ for epoch in range(1, epochs + 1):
     test(valid_loader, 'valid')
 
 test(test_loader, 'test')
-np.savetxt('fcnetwork3', ll, delimiter=',')
+np.savetxt('fcnetwork4', ll, delimiter=',')
