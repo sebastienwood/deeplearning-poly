@@ -73,7 +73,7 @@ class FcNetwork2(nn.Module):
     def forward(self, image):
         batch_size = image.size()[0]
         x = image.view(batch_size, -1)
-        x = F.relu(self.fc1(x))
+        x = F.leaky_relu(self.fc1(x))
         x = F.log_softmax(self.fc2(x), dim=0)
         return x
 
@@ -121,7 +121,7 @@ class FcNetwork4(nn.Module):
         return x
 
 
-model = FcNetwork4()
+model = FcNetwork3()
 optimizer = optim.Adam(model.parameters())
 
 def train(epoch):
@@ -134,7 +134,7 @@ def train(epoch):
         loss.backward()
         optimizer.step()
 
-
+ll = []
 def test(loader, name):
     model.eval()
     test_loss = 0
@@ -147,14 +147,16 @@ def test(loader, name):
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 
     test_loss /= len(loader.dataset)
+    ll.append(test_loss)
     print('\n' + name + ' set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         test_loss, correct, len(loader.dataset),
         100. * correct / len(loader.dataset)))
 
-epochs = 100
+epochs = 50
+
 for epoch in range(1, epochs + 1):
     train(epoch)
     test(valid_loader, 'valid')
 
 test(test_loader, 'test')
-
+np.savetxt('fcnetwork3', ll, delimiter=',')
