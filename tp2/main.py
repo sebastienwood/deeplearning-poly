@@ -121,8 +121,38 @@ class FcNetwork4(nn.Module):
         return x
 
 
-model = FcNetwork4()
+class CNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Sequential(         # input shape (1, 28, 28)
+            nn.Conv2d(
+                in_channels=1,              # input height
+                out_channels=16,            # n_filters
+                kernel_size=5,              # filter size
+                stride=1,                   # filter movement/step
+                padding=2,                  # if want same width and length of this image after con2d, padding=(kernel_size-1)/2 if stride=1
+            ),                              # output shape (16, 28, 28)
+            nn.ReLU(),                      # activation
+            nn.MaxPool2d(kernel_size=2),    # choose max value in 2x2 area, output shape (16, 14, 14)
+        )
+        self.conv2 = nn.Sequential(         # input shape (1, 14, 14)
+            nn.Conv2d(16, 32, 5, 1, 2),     # output shape (32, 14, 14)
+            nn.ReLU(),                      # activation
+            nn.MaxPool2d(2),                # output shape (32, 7, 7)
+        )
+        self.out = nn.Linear(32 * 7 * 7, 10)   # fully connected layer, output 10 classes
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x.view(x.size(0), -1)           # flatten the output of conv2 to (batch_size, 32 * 7 * 7)
+        output = self.out(x)
+        return output    # return x for visualization
+
+
+model = CNN()
 optimizer = optim.Adam(model.parameters())
+loss_func = nn.CrossEntropyLoss()
 
 def train(epoch):
     model.train()
@@ -130,7 +160,8 @@ def train(epoch):
         data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
         output = model(data)
-        loss = F.nll_loss(output, target)
+        # loss = F.nll_loss(output, target)
+        loss = loss_func(output, target)
         loss.backward()
         optimizer.step()
 
@@ -142,7 +173,8 @@ def test(loader, name):
     for data, target in loader:
         data, target = Variable(data, volatile=True), Variable(target)
         output = model(data)
-        test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
+        # test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
+        test_loss += loss_func(output, target).data[0]
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 
@@ -152,7 +184,7 @@ def test(loader, name):
         test_loss, correct, len(loader.dataset),
         100. * correct / len(loader.dataset)))
 
-epochs = 50
+epochs = 100
 
 for epoch in range(1, epochs + 1):
     train(epoch)
