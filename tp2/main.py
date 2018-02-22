@@ -121,42 +121,104 @@ class FcNetwork4(nn.Module):
         return x
 
 
-model = FcNetwork4()
-optimizer = optim.Adam(model.parameters())
+class CNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Sequential(         # input shape (1, 28, 28)
+            nn.Conv2d(
+                in_channels=1,              # input height
+                out_channels=16,            # n_filters
+                kernel_size=5,              # filter size
+                stride=1,                   # filter movement/step
+                padding=2,                  # if want same width and length of this image after con2d, padding=(kernel_size-1)/2 if stride=1
+            ),                              # output shape (16, 28, 28)
+            nn.ReLU(),                      # activation
+            nn.MaxPool2d(kernel_size=2),    # choose max value in 2x2 area, output shape (16, 14, 14)
+        )
+        self.conv2 = nn.Sequential(         # input shape (1, 14, 14)
+            nn.Conv2d(16, 32, 5, 1, 2),     # output shape (32, 14, 14)
+            nn.ReLU(),                      # activation
+            nn.MaxPool2d(2),                # output shape (32, 7, 7)
+        )
+        self.out = nn.Linear(32 * 7 * 7, 10)   # fully connected layer, output 10 classes
 
-def train(epoch):
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x.view(x.size(0), -1)           # flatten the output of conv2 to (batch_size, 32 * 7 * 7)
+        output = self.out(x)
+        return output    # return x for visualization
+
+
+def train(model, train_loader, optimizer):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
+        # data, target = Variable(data, volatile=True).cuda(), Variable(target).cuda() # if you have access to a gpu
         data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
-        output = model(data)
+        output = model(data)  # calls the forward function
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
+    return model
 
-ll = []
-def test(loader, name):
+
+def valid(model, valid_loader):
+    model.eval()
+    valid_loss = 0
+    correct = 0
+    for data, target in valid_loader:
+        # data, target = Variable(data, volatile=True).cuda(), Variable(target).cuda() # if you have access to a gpu
+        data, target = Variable(data, volatile=True), Variable(target)
+        output = model(data)
+        valid_loss += F.nll_loss(output, target, size_average=False).data[0]  # sum up batch loss
+        pred = output.data.max(1, keepdim=True)[1]  # get the index of the max log-probability
+        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+
+    valid_loss /= len(valid_loader.dataset)
+    print('\n' + "valid" + ' set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        valid_loss, correct, len(valid_loader.dataset),
+        100. * correct / len(valid_loader.dataset)))
+    return correct / len(valid_loader.dataset)
+
+
+def test(model, test_loader):
     model.eval()
     test_loss = 0
     correct = 0
-    for data, target in loader:
+    for data, target in test_loader:
+        # data, target = Variable(data, volatile=True).cuda(), Variable(target).cuda() # if you have access to a gpu
         data, target = Variable(data, volatile=True), Variable(target)
         output = model(data)
-        test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
+        test_loss += F.nll_loss(output, target, size_average=False).data[0]  # sum up batch loss
+        pred = output.data.max(1, keepdim=True)[1]  # get the index of the max log-probability
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 
-    test_loss /= len(loader.dataset)
-    ll.append(test_loss)
-    print('\n' + name + ' set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(loader.dataset),
-        100. * correct / len(loader.dataset)))
+    test_loss /= len(test_loader.dataset)
+    print('\n' + "test" + ' set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        test_loss, correct, len(test_loader.dataset),
+        100. * correct / len(test_loader.dataset)))
 
-epochs = 50
 
-for epoch in range(1, epochs + 1):
-    train(epoch)
-    test(valid_loader, 'valid')
+def experiment(model, epochs=10, lr=0.001):
+    best_precision = 0
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    for epoch in range(1, epochs + 1):
+        model = train(model, train_loader, optimizer)
+        precision = valid(model, valid_loader)
 
-test(test_loader, 'test')
-np.savetxt('fcnetwork4', ll, delimiter=',')
+        if precision > best_precision:
+            best_precision = precision
+            best_model = model
+    return best_model, best_precision
+
+
+best_precision = 0
+for model in [FcNetwork(), FcNetwork2(), FcNetwork3(), FcNetwork4()]:  # add your models in the list
+    # model.cuda()  # if you have access to a gpu
+    model, precision = experiment(model)
+    if precision > best_precision:
+        best_precision = precision
+        best_model = model
+
+test(best_model, test_loader)
